@@ -18,28 +18,29 @@ def home():
 def memory():
     return get_memory()
 
+from db import add_chat, get_chat
+
 @app.post("/chat")
 def chat(req: ChatRequest):
 
-    # 1. salva input utente
-    set_memory("user", req.message)
+    # salva user
+    add_chat("user", req.message)
 
-    # 2. leggi memoria
-    history = get_memory()
+    # leggi storico
+    history = get_chat()
 
-    # 3. genera risposta (per ora mock)
+    # risposta AI
     response = generate_ai_response(req.message)
 
-    # 4. salva risposta AI
-    set_memory("ai", response)
+    # salva AI
+    add_chat("ai", response)
 
     return {
         "input": req.message,
-        "memory": history,
+        "history": history,
         "response": response,
-        "mode": "memory-active"
+        "mode": "chat-log-memory"
     }
-
 
 def generate_ai_response(message: str):
 
