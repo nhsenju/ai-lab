@@ -21,10 +21,23 @@ def memory():
 @app.post("/chat")
 def chat(req: ChatRequest):
 
+    # 1. salva input utente
+    set_memory("user", req.message)
+
+    # 2. leggi memoria
+    history = get_memory()
+
+    # 3. genera risposta (per ora mock)
+    response = generate_ai_response(req.message)
+
+    # 4. salva risposta AI
+    set_memory("ai", response)
+
     return {
         "input": req.message,
-        "response": generate_ai_response(req.message),
-        "mode": "external-ai"
+        "memory": history,
+        "response": response,
+        "mode": "memory-active"
     }
 
 
