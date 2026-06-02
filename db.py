@@ -5,12 +5,12 @@ cursor = conn.cursor()
 
 def init_db():
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS memory (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        key TEXT,
-        value TEXT
-    )
-    """)
+CREATE TABLE IF NOT EXISTS chat (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    role TEXT,
+    message TEXT
+)
+""")
     conn.commit()
 
 def set_memory(key, value):
