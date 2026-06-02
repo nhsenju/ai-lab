@@ -27,3 +27,16 @@ def add_message(role, message):
         (role, message)
     )
     conn.commit()
+
+def add_chat(role, message):
+    cursor.execute(
+        "INSERT INTO chat (role, message) VALUES (?, ?)",
+        (role, message)
+    )
+    conn.commit()
+
+def get_chat():
+    cursor.execute("SELECT role, message FROM chat ORDER BY id ASC")
+    return cursor.fetchall()
+
+
