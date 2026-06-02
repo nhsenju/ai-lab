@@ -1,6 +1,10 @@
 from fastapi import FastAPI
+from pydantic import BaseModel
 
 app = FastAPI()
+
+class ChatRequest(BaseModel):
+    message: str
 
 @app.get("/")
 def home():
@@ -9,11 +13,10 @@ def home():
         "message": "AI Lab attivo 🚀"
     }
 
-# 🔥 AGGIUNTA IMPORTANTE PER RENDER
-if __name__ == "__main__":
-    import uvicorn
-    import os
-
-    port = int(os.environ.get("PORT", 8000))
-
-    uvicorn.run(app, host="0.0.0.0", port=port)
+@app.post("/chat")
+def chat(req: ChatRequest):
+    return {
+        "input": req.message,
+        "response": f"Hai detto: {req.message}",
+        "mode": "mock-ai"
+    }
