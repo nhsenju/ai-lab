@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from db import init_db, set_memory, get_memory
 import requests
 
+
 app = FastAPI()
+init_db()
 
 class ChatRequest(BaseModel):
     message: str
@@ -10,6 +13,10 @@ class ChatRequest(BaseModel):
 @app.get("/")
 def home():
     return {"status": "online", "message": "AI Lab attivo 🚀"}
+
+@app.get("/memory")
+def memory():
+    return get_memory()
 
 @app.post("/chat")
 def chat(req: ChatRequest):
