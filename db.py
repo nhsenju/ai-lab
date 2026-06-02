@@ -5,27 +5,12 @@ cursor = conn.cursor()
 
 def init_db():
     cursor.execute("""
-CREATE TABLE IF NOT EXISTS chat (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    role TEXT,
-    message TEXT
-)
-""")
-    conn.commit()
-
-def set_memory(key, value):
-    cursor.execute("INSERT INTO memory (key, value) VALUES (?, ?)", (key, value))
-    conn.commit()
-
-def get_memory():
-    cursor.execute("SELECT key, value FROM memory")
-    return cursor.fetchall()
-
-def add_message(role, message):
-    cursor.execute(
-        "INSERT INTO memory (key, value) VALUES (?, ?)",
-        (role, message)
+    CREATE TABLE IF NOT EXISTS chat (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        role TEXT,
+        message TEXT
     )
+    """)
     conn.commit()
 
 def add_chat(role, message):
@@ -38,5 +23,3 @@ def add_chat(role, message):
 def get_chat():
     cursor.execute("SELECT role, message FROM chat ORDER BY id ASC")
     return cursor.fetchall()
-
-
