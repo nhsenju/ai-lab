@@ -20,3 +20,10 @@ def set_memory(key, value):
 def get_memory():
     cursor.execute("SELECT key, value FROM memory")
     return cursor.fetchall()
+
+def add_message(role, message):
+    cursor.execute(
+        "INSERT INTO memory (key, value) VALUES (?, ?)",
+        (role, message)
+    )
+    conn.commit()
