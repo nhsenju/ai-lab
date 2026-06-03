@@ -50,13 +50,15 @@ def generate_ai_response(message: str, history=None):
 
     messages = []
 
-    # aggiungiamo memoria
-    if history:
-        for role, msg in history:
-            messages.append({
-                "role": role,
-                "content": msg
-            })
+    # aggiungiamo solo gli ultimi 10 messaggi
+if history:
+    last_messages = history[-10:]
+
+    for role, msg in last_messages:
+        messages.append({
+            "role": role,
+            "content": msg
+        })
 
     # messaggio nuovo utente
     messages.append({
