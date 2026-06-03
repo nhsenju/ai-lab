@@ -1,51 +1,87 @@
-# Importiamo FastAPI per creare il server web
+# ==================================
+# IMPORT LIBRERIE
+# ==================================
+
+# Framework API
 from fastapi import FastAPI
 
-# Serve per definire la struttura dei dati ricevuti
+# Validazione input JSON
 from pydantic import BaseModel
 
-# Importiamo le funzioni del database
-from db import init_db, add_chat, get_chat
+# Funzioni database
+from db import (
+    init_db,
+    add_chat,
+    get_chat,
+    get_last_chat,
+    trim_chat
+)
 
-# Permette di leggere le variabili d'ambiente
+# Variabili ambiente
 import os
 
-# Serve per fare richieste HTTP verso OpenRouter
+# Richieste HTTP
 import requests
 
 
-# Creazione dell'app FastAPI
+# ==================================
+# CREAZIONE APP FASTAPI
+# ==================================
+
 app = FastAPI()
 
 
-# Inizializzazione del database all'avvio del server
+# ==================================
+# INIZIALIZZAZIONE DATABASE
+# ==================================
+
 init_db()
 
 
-# ==========================
-# MODELLO DATI INPUT CHAT
-# ==========================
+# ==================================
+# SYSTEM PROMPT
+# ==================================
 
-# Quando un utente invia un messaggio,
-# FastAPI si aspetta un JSON tipo:
+# Questo messaggio viene inviato
+# SEMPRE al modello.
 #
-# {
-#   "message": "ciao"
-# }
-#
+# Serve a definire comportamento,
+# stile e regole.
+
+SYSTEM_PROMPT = {
+    "role": "system",
+    "content": """
+    Sei un assistente AI tecnico.
+
+    Rispondi in modo:
+
+    - chiaro
+    - preciso
+    - pratico
+    - educativo
+
+    Quando spieghi codice,
+    spiega anche il motivo
+    delle scelte tecniche.
+    """
+}
+
+
+# ==================================
+# MODELLO INPUT CHAT
+# ==================================
+
 class ChatRequest(BaseModel):
+
     message: str
 
 
-# ==========================
+# ==================================
 # HOME PAGE
-# ==========================
+# ==================================
 
 @app.get("/")
 def home():
-
-    # Endpoint di test
-    # Serve per verificare che il server sia online
 
     return {
         "status": "online",
@@ -53,138 +89,171 @@ def home():
     }
 
 
-# ==========================
-# MEMORIA
-# ==========================
+# ==================================
+# MEMORIA COMPLETA
+# ==================================
 
 @app.get("/memory")
 def memory():
 
-    # Restituisce tutto lo storico salvato
-
     return get_chat()
 
 
-# ==========================
-# CHAT PRINCIPALE
-# ==========================
+# ==================================
+# COSTRUZIONE PROMPT
+# ==================================
 
-@app.post("/chat")
-def chat(req: ChatRequest):
+def build_messages(history):
 
-    # ----------------------------------
-    # 1. Salviamo il messaggio utente
-    # ----------------------------------
+    # Lista finale inviata all'LLM
 
-    add_chat("user", req.message)
+    messages = [SYSTEM_PROMPT]
 
-    # ----------------------------------
-    # 2. Recuperiamo tutta la chat
-    # ----------------------------------
+    # Aggiungiamo la cronologia
 
-    history = get_chat()
+    for role, msg in history:
 
-    # ----------------------------------
-    # 3. Chiediamo risposta all'AI
-    # ----------------------------------
+        # Filtriamo soltanto
+        # i ruoli compatibili OpenAI
 
-    response = generate_ai_response(history)
-
-    # ----------------------------------
-    # 4. Salviamo la risposta AI
-    # ----------------------------------
-
-    add_chat("ai", response)
-
-    # ----------------------------------
-    # 5. Restituiamo il risultato
-    # ----------------------------------
-
-    return {
-        "input": req.message,
-        "history": history,
-        "response": response,
-        "mode": "openrouter-ai"
-    }
-
-
-# ==========================
-# MOTORE AI
-# ==========================
-
-def generate_ai_response(history):
-
-    # Leggiamo la chiave OpenRouter
-    # salvata su Render
-
-    api_key = os.getenv("OPENROUTER_API_KEY")
-
-    # Lista messaggi che verrà inviata al modello
-
-    messages = []
-
-    # ----------------------------------
-    # MEMORIA LIMITATA
-    # ----------------------------------
-    #
-    # Prendiamo solo gli ultimi 10 messaggi
-    #
-    # Esempio:
-    #
-    # history[-10:]
-    #
-    # significa:
-    #
-    # "dammi gli ultimi 10 elementi"
-    #
-
-    if history:
-
-        last_messages = history[-10:]
-
-        for role, msg in last_messages:
+        if role in ["user", "assistant"]:
 
             messages.append({
                 "role": role,
                 "content": msg
             })
 
-    # ----------------------------------
-    # CHIAMATA OPENROUTER
-    # ----------------------------------
+    return messages
 
-    response = requests.post(
 
-        "https://openrouter.ai/api/v1/chat/completions",
+# ==================================
+# MOTORE AI
+# ==================================
 
-        headers={
+def generate_ai_response(history):
 
-            # Autenticazione
+    # Recuperiamo API KEY
 
-            "Authorization": f"Bearer {api_key}",
-
-            # Tipo dati
-
-            "Content-Type": "application/json"
-        },
-
-        json={
-
-            # Modello scelto
-
-            "model": "openai/gpt-oss-20b",
-
-            # Conversazione inviata
-
-            "messages": messages
-        }
+    api_key = os.getenv(
+        "OPENROUTER_API_KEY"
     )
 
-    # Convertiamo la risposta JSON
-    # ricevuta dal server
+    # Convertiamo history
+    # in formato OpenAI
 
-    data = response.json()
+    messages = build_messages(history)
 
-    # Estraiamo il testo generato
+    try:
 
-    return data["choices"][0]["message"]["content"]
+        response = requests.post(
+
+            "https://openrouter.ai/api/v1/chat/completions",
+
+            headers={
+
+                "Authorization":
+                f"Bearer {api_key}",
+
+                "Content-Type":
+                "application/json"
+            },
+
+            json={
+
+                "model":
+                "openai/gpt-oss-20b",
+
+                "messages":
+                messages
+            },
+
+            # Se OpenRouter non risponde
+            # entro 20 secondi,
+            # interrompiamo la richiesta
+
+            timeout=20
+        )
+
+        # Verifica codice risposta
+
+        if response.status_code != 200:
+
+            return (
+                f"Errore OpenRouter: "
+                f"{response.status_code}"
+            )
+
+        # Conversione JSON
+
+        data = response.json()
+
+        # Estrazione testo AI
+
+        return (
+            data["choices"][0]
+            ["message"]
+            ["content"]
+        )
+
+    except Exception as e:
+
+        return (
+            f"Errore connessione AI: "
+            f"{str(e)}"
+        )
+
+
+# ==================================
+# CHAT PRINCIPALE
+# ==================================
+
+@app.post("/chat")
+def chat(req: ChatRequest):
+
+    # --------------------------
+    # 1. Salvataggio utente
+    # --------------------------
+
+    add_chat(
+        "user",
+        req.message
+    )
+
+    # --------------------------
+    # 2. Recupero ultimi messaggi
+    # --------------------------
+
+    history = get_last_chat(10)
+
+    # --------------------------
+    # 3. Generazione risposta
+    # --------------------------
+
+    response = generate_ai_response(
+        history
+    )
+
+    # --------------------------
+    # 4. Salvataggio risposta
+    # --------------------------
+
+    add_chat(
+        "assistant",
+        response
+    )
+
+    # --------------------------
+    # 5. Pulizia database
+    # --------------------------
+
+    trim_chat(200)
+
+    # --------------------------
+    # 6. Risposta API
+    # --------------------------
+
+    return {
+        "input": req.message,
+        "response": response,
+        "memory_used": len(history)
+    }
