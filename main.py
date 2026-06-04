@@ -143,6 +143,17 @@ def generate_ai_response(history):
 
     messages = build_messages(history)
 
+    # ==================================
+    # LOGGING PROMPT
+    # ==================================
+
+    print("\n===== PROMPT INVIATO =====")
+
+    for msg in messages:
+        print(msg)
+
+    print("=========================\n")
+
     try:
 
         response = requests.post(
@@ -178,6 +189,11 @@ def generate_ai_response(history):
 
         if response.status_code != 200:
 
+            print(
+                f"ERRORE OPENROUTER: "
+                f"{response.status_code}"
+            )
+
             return (
                 f"Errore OpenRouter: "
                 f"{response.status_code}"
@@ -189,13 +205,28 @@ def generate_ai_response(history):
 
         # Estrazione testo AI
 
-        return (
+        ai_response = (
             data["choices"][0]
             ["message"]
             ["content"]
         )
 
+        # ==================================
+        # LOGGING RISPOSTA AI
+        # ==================================
+
+        print("\n===== RISPOSTA AI =====")
+        print(ai_response)
+        print("=======================\n")
+
+        return ai_response
+
     except Exception as e:
+
+        print(
+            f"ERRORE CONNESSIONE AI: "
+            f"{str(e)}"
+        )
 
         return (
             f"Errore connessione AI: "
@@ -224,6 +255,17 @@ def chat(req: ChatRequest):
     # --------------------------
 
     history = get_last_chat(10)
+
+    # ==================================
+    # LOGGING HISTORY
+    # ==================================
+
+    print("\n===== HISTORY =====")
+
+    for role, msg in history:
+        print(f"{role}: {msg}")
+
+    print("===================\n")
 
     # --------------------------
     # 3. Generazione risposta
